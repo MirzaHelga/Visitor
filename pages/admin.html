@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="id" data-active-lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ED1B2F">
+<link rel="icon" href="../assets/images/icon-192.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="../assets/images/icon-192.png">
+<title>Admin — Buku Tamu Pabrik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<link rel="stylesheet" href="../assets/css/admin.css">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <img class="sidebar-logo" src="../assets/images/logo.png" alt="Savoria Kreasi Rasa">
+    <button class="sidebar-close" onclick="closeSidebar()" aria-label="Tutup">✕</button>
+  </div>
+  <div class="sidebar-nav" id="sidebar-nav-static">
+    <a href="../index.html">Form Tamu</a>
+  </div>
+  <div class="sidebar-nav" id="sidebar-nav-dynamic" style="display:none;">
+    <div class="divider"></div>
+    <a data-view="confirm" data-mode="primary" data-roles="employee,superadmin" onclick="showView('confirm','primary');return false;">Konfirmasi Primary</a>
+    <a data-view="confirm" data-mode="secondary" data-roles="gs,superadmin" onclick="showView('confirm','secondary');return false;">Konfirmasi Secondary</a>
+    <a data-view="confirm" data-mode="exit" data-roles="security,superadmin" onclick="showView('confirm','exit');return false;">Konfirmasi Keluar</a>
+    <a data-view="dashboard" data-roles="employee,gs,security,superadmin" onclick="showView('dashboard');return false;">Dashboard</a>
+    <a data-view="daftar" data-roles="employee,gs,security,superadmin,unrole" onclick="showView('daftar');return false;">Daftar</a>
+    <a data-view="mapping" data-roles="superadmin" onclick="showView('mapping');return false;">Karyawan</a>
+    <a data-view="builder" data-roles="superadmin" onclick="showView('builder');return false;">Form Builder</a>
+    <a data-view="akun" data-roles="superadmin" onclick="showView('akun');return false;">Kelola Akun</a>
+  </div>
+</nav>
+
+<div class="center-screen" id="login-screen">
+  <button class="hamburger-btn login-hamburger" onclick="openSidebar()" aria-label="Menu"><span></span></button>
+  <div class="login-card">
+    <img class="login-banner" src="../assets/images/banner-savoria.png" alt="Savoria - Make everyday taste great">
+    <div class="login-body">
+    <h1>Admin Login</h1>
+    <p>Buku Tamu Pabrik — akses terbatas untuk petugas</p>
+    <div class="err" id="login-err"></div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="login-email" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="login-pass" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Masuk</button>
+    </div>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <button class="hamburger-btn" onclick="openSidebar()" aria-label="Menu"><span></span></button>
+      <img class="topbar-logo" src="../assets/images/logo.png" alt="Savoria Kreasi Rasa">
+      <div>
+        <h1>Buku Tamu Pabrik — Admin</h1>
+        <div class="sub" id="user-email"></div>
+        <div id="user-role-pill"></div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">Keluar</button>
+  </div>
+
+  <div class="container">
+
+    <!-- UNROLE NOTICE -->
+    <div class="notice" id="unrole-notice" style="display:none;">
+      Akun Anda belum dipetakan ke role apa pun. Anda hanya bisa melihat halaman Daftar.
+      Hubungi Superadmin untuk mendapatkan akses Konfirmasi / Dashboard.
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="view" id="view-dashboard">
+      <h2>Dashboard</h2>
+      <div class="stats-row">
+        <div class="stat"><div class="n" id="stat-total">–</div><div class="l">Total Tamu</div></div>
+        <div class="stat"><div class="n" id="stat-today">–</div><div class="l">Hari Ini</div></div>
+        <div class="stat"><div class="n" id="stat-review">–</div><div class="l">Perlu Ditinjau</div></div>
+        <div class="stat"><div class="n" id="stat-noprimary">–</div><div class="l">Belum Dikonfirmasi</div></div>
+        <div class="stat"><div class="n" id="stat-noexit">–</div><div class="l">Belum Keluar</div></div>
+      </div>
+
+      <div class="dash-toolbar">
+        <label>Dari<input type="date" id="dash-from" oninput="renderDashboardPanels()"></label>
+        <label>Sampai<input type="date" id="dash-to" oninput="renderDashboardPanels()"></label>
+        <button class="btn-outline" onclick="setDashToday()">Hari Ini</button>
+        <button class="btn-outline" onclick="loadVisitors()">Muat Ulang</button>
+      </div>
+
+      <div class="dash-grid">
+        <section class="dash-panel">
+          <div class="dash-panel-head"><h3>Orang Masuk</h3><span class="dash-count in" id="dash-in-count">0</span></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Waktu Masuk</th><th>Nama</th><th>Kepentingan</th><th>Bertemu</th></tr></thead>
+              <tbody id="dash-in-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="dash-panel">
+          <div class="dash-panel-head"><h3>Orang Keluar</h3><span class="dash-count out" id="dash-out-count">0</span></div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Waktu Keluar</th><th>Nama</th><th>Kepentingan</th><th>Bertemu</th></tr></thead>
+              <tbody id="dash-out-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- DAFTAR -->
+    <div class="view" id="view-daftar">
+      <h2>Daftar Tamu</h2>
+      <div class="toolbar">
+        <input type="text" id="search" placeholder="Cari nama, perusahaan, atau tujuan..." oninput="applyFilter()">
+        <select id="filter-health" onchange="applyFilter()">
+          <option value="all">Semua Status Kesehatan</option>
+          <option value="clear">Baik</option>
+          <option value="review">Perlu Ditinjau</option>
+        </select>
+        <button class="btn-outline" onclick="loadVisitors()">Muat Ulang</button>
+        <button class="btn-outline" onclick="exportExcel()">Export Excel</button>
+        <button class="btn-outline" id="download-photos-btn" onclick="downloadSelectedPhotos()" disabled>Simpan Foto Terpilih (<span id="selected-count-photo">0</span>)</button>
+        <button class="btn-danger" id="delete-selected-btn" onclick="deleteSelected()" disabled>Hapus Terpilih (<span id="selected-count">0</span>)</button>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr id="table-head-row">
+              <th class="chk-col"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
+              <th>Foto</th><th>ID</th><th>Nama</th><th>Perusahaan</th><th>Tujuan / Ditemui</th>
+              <th>Waktu Masuk</th><th>Kesehatan</th><th>Status Kunjungan</th><th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty-msg" style="display:none;">Belum ada data tamu.</div>
+    </div>
+
+    <!-- KONFIRMASI (scan QR) -->
+    <div class="view" id="view-confirm">
+      <h2 id="confirm-title">Konfirmasi</h2>
+      <div class="confirm-box">
+        <div class="scan-area">
+          <video id="scan-video" playsinline muted></video>
+          <div class="scan-hint" id="scan-hint">Tekan "Mulai Scan" lalu arahkan kamera ke QR kartu tamu.</div>
+          <canvas id="scan-canvas" style="display:none;"></canvas>
+        </div>
+        <button class="btn-primary" id="scan-start-btn" onclick="toggleScanner()">Mulai Scan</button>
+        <div class="manual-row">
+          <input type="text" id="manual-code" placeholder="atau ketik ID tamu, mis. 36000001">
+          <button class="btn-outline" onclick="confirmManual()">Konfirmasi</button>
+        </div>
+        <div id="confirm-result"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-akun">
+      <h2>Kelola Akun</h2>
+      <p style="font-size:12.5px;color:#5c6b66;margin-top:-8px;">Buat akun login baru, edit email dan role (boleh lebih dari satu), reset password, atau hapus akun.</p>
+      <div class="akun-form">
+        <input type="email" id="akun-email" placeholder="Email" autocomplete="off">
+        <input type="password" id="akun-pass" placeholder="Password (min. 8 karakter)" autocomplete="new-password">
+        <div class="role-checks" id="akun-roles" title="Boleh pilih lebih dari satu role"></div>
+        <input type="text" id="akun-emp" list="akun-emp-dl" placeholder="Cari karyawan (nama / nomor)…" style="display:none;" autocomplete="off">
+        <span id="akun-emp-list"></span>
+        <button class="btn-outline" id="akun-create-btn" onclick="createAkun()">+ Buat Akun</button>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Email</th><th>Role</th><th>Karyawan Terkait</th><th>Dibuat</th><th>Aksi</th></tr></thead>
+          <tbody id="akun-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FORM BUILDER (superadmin only) -->
+    <div class="view" id="view-builder">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
+        <div>
+          <h2 style="margin-bottom:4px;">Form Builder</h2>
+          <p style="font-size:12.5px;color:#5c6b66;margin:0;">Atur pertanyaan yang tampil di form tamu: tambah, ubah teks, ganti urutan, atau sembunyikan. Perubahan langsung berlaku di form tamu berikutnya.</p>
+        </div>
+        <a class="btn-outline" href="../index.html" target="_blank" style="text-decoration:none;">Lihat Form Tamu ↗</a>
+      </div>
+      <div id="builder-body" style="margin-top:18px;"></div>
+    </div>
+
+    <!-- KARYAWAN (superadmin only) -->
+    <div class="view" id="view-mapping">
+      <div class="mapping-section">
+        <h2>Karyawan</h2>
+        <p style="font-size:12.5px;color:#5c6b66;margin-top:-8px;">Daftar ini muncul sebagai pilihan "Yang Ditemui" di form tamu, dan dipakai untuk menghubungkan akun Employee ke identitas karyawan.</p>
+        <div class="add-emp-row">
+          <input type="text" id="new-emp-no" placeholder="No. karyawan" style="max-width:150px;min-width:110px;">
+          <input type="text" id="new-emp-name" placeholder="Nama karyawan">
+          <input type="text" id="new-emp-dept" placeholder="Departemen (opsional)">
+          <button class="btn-outline" onclick="addEmployee()">+ Tambah Karyawan</button>
+        </div>
+        <div class="add-emp-row emp-filters">
+          <input type="search" id="emp-search" placeholder="🔍 Cari nama, nomor, atau departemen…" oninput="renderEmployeesTable()">
+          <select id="emp-filter-dept" onchange="renderEmployeesTable()"><option value="">Semua Departemen</option></select>
+          <select id="emp-filter-status" onchange="renderEmployeesTable()">
+            <option value="">Semua Status</option><option value="active">Aktif</option><option value="inactive">Nonaktif</option>
+          </select>
+        </div>
+        <div class="emp-count" id="emp-count"></div>
+        <div class="table-scroll emp-scroll">
+          <table>
+            <thead><tr><th>No.</th><th>Nama</th><th>Departemen</th><th>Aktif</th></tr></thead>
+            <tbody id="mapping-employees-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mapping-section">
+        <h2>Role Akun</h2>
+        <p style="font-size:12.5px;color:#5c6b66;margin-top:-8px;">Satu akun boleh punya beberapa role sekaligus. Akun tanpa role = "Unrole" (hanya bisa melihat Daftar).</p>
+        <div class="add-emp-row">
+          <input type="search" id="prof-search" placeholder="🔍 Cari email akun…" oninput="renderProfilesTable()">
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Email</th><th>Role</th><th>Karyawan Terkait</th><th></th></tr></thead>
+            <tbody id="mapping-profiles-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-bg" id="bq-modal-bg" onclick="if(event.target===this) bqCloseEditor()">
+  <div class="modal" id="bq-modal"></div>
+</div>
+
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this) closeModal()">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script src="../assets/js/pwa.js"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/admin.js"></script>
+<script src="../assets/js/builder.js"></script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+:root{
+    --ink:#111111;
+    --paper:#f5f4ef;
+    --card:#ffffff;
+    --teal:#ED1B2F;          /* Savoria red (nama var lama dipertahankan) */
+    --teal-dark:#9d101e;
+    --teal-tint:#fde8ea;
+    --ok:#1e7a46; --ok-tint:#e3f3ea;
+    --amber:#d98e2b; --amber-tint:#fbf0dd;
+    --red:#c0152a; --red-tint:#fde8ea;
+    --line:#cfcbbf;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Manrope',system-ui,sans-serif;
+    min-height:100vh;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    padding-left:env(safe-area-inset-left);
+    padding-right:env(safe-area-inset-right);
+  }
+  /* Header */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0 18px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;min-width:0;}
+  .topbar-left{display:flex;align-items:center;gap:10px;min-width:0;}
+
+  /* ---- Hamburger + Sidebar ---- */
+  .hamburger-btn{
+    display:flex;align-items:center;justify-content:center;
+    width:38px;height:38px;flex-shrink:0;
+    background:#fff;border:1.5px solid var(--line);border-radius:9px;cursor:pointer;
+  }
+  .hamburger-btn span{display:block;width:16px;height:2px;background:var(--ink);border-radius:2px;position:relative;}
+  .hamburger-btn span::before,.hamburger-btn span::after{content:"";position:absolute;left:0;width:16px;height:2px;background:var(--ink);border-radius:2px;}
+  .hamburger-btn span::before{top:-5px;}
+  .hamburger-btn span::after{top:5px;}
+
+  .sidebar-overlay{
+    position:fixed;inset:0;background:rgba(18,33,29,.5);z-index:40;
+    opacity:0;pointer-events:none;transition:opacity .2s ease;
+  }
+  .sidebar-overlay.show{opacity:1;pointer-events:auto;}
+
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:78vw;max-width:280px;
+    background:#fff;z-index:50;box-shadow:20px 0 40px -20px rgba(18,33,29,.35);
+    transform:translateX(-100%);transition:transform .25s ease;
+    padding:20px 18px;padding-top:calc(20px + env(safe-area-inset-top));
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .sidebar.show{transform:translateX(0);}
+  .sidebar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+  .sidebar-logo{height:28px;width:auto;}
+  .sidebar-close{width:32px;height:32px;border-radius:8px;background:var(--paper);border:1.5px solid var(--line);font-size:16px;line-height:1;cursor:pointer;color:var(--ink);}
+  .sidebar-nav{display:flex;flex-direction:column;gap:6px;}
+  .sidebar-nav a{
+    display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:9px;
+    text-decoration:none;color:var(--ink);font-size:14px;font-weight:700;
+  }
+  .sidebar-nav a:hover{background:var(--teal-tint);}
+  .sidebar-nav a.active{background:var(--teal);color:#fff;}
+  .sidebar-nav .ic{width:18px;text-align:center;flex-shrink:0;}
+  .brand-logo{height:34px;width:auto;flex-shrink:0;}
+  .brand-text .sub{font-size:11.5px;color:#5c6b66;letter-spacing:.02em;}
+  .lang-toggle{
+    display:flex;border:1.5px solid var(--line);border-radius:999px;overflow:hidden;background:#fff;
+    font-family:'Space Mono',monospace;font-size:11px;font-weight:700;flex-shrink:0;
+  }
+  .lang-toggle button{
+    border:none;background:transparent;padding:7px 12px;cursor:pointer;color:#8a8578;letter-spacing:.03em;
+  }
+  .lang-toggle button.active{background:var(--teal);color:#fff;}
+
+  /* Progress */
+  .steps{display:flex;gap:6px;margin-bottom:26px;}
+  .steps .seg{flex:1;height:4px;border-radius:3px;background:var(--line);position:relative;overflow:hidden;}
+  .steps .seg.done, .steps .seg.active{background:var(--teal);}
+  .step-label{font-family:'Space Mono',monospace;font-size:11px;color:#7a7666;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px;}
+
+  .panel{display:none;}
+  .panel.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  h1.title{font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0 0 4px;}
+  p.desc{font-size:14px;color:#5c6b66;margin:0 0 22px;line-height:1.5;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink);}
+  .field .hint{font-size:11.5px;color:#8a8578;margin-top:5px;}
+  input[type=text],input[type=tel],input[type=email],select,textarea{
+    width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 13px;
+    font-family:'Manrope',sans-serif;font-size:15px;background:#fff;color:var(--ink);
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:var(--teal);}
+  textarea{resize:vertical;min-height:64px;}
+  .req{color:var(--red);}
+
+  /* Health question card */
+  .hq{
+    background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+    padding:14px 15px;margin-bottom:10px;
+  }
+  .hq .q{font-size:14.5px;font-weight:600;line-height:1.4;margin-bottom:11px;}
+  .hq .opts{display:flex;gap:8px;}
+  .hq .opt{
+    flex:1;text-align:center;padding:10px 8px;border-radius:9px;border:1.5px solid var(--line);
+    font-size:13.5px;font-weight:700;cursor:pointer;background:#fff;color:#7a7666;
+    font-family:'Space Mono',monospace;letter-spacing:.02em;
+  }
+  .hq .opt.selected-no{background:var(--ok-tint);border-color:var(--ok);color:var(--ok);}
+  .hq .opt.selected-yes{background:var(--red-tint);border-color:var(--red);color:var(--red);}
+
+  .health-banner{
+    border-radius:var(--radius);padding:14px 15px;margin:18px 0 4px;font-size:13.5px;font-weight:600;display:none;
+  }
+  .health-banner.show{display:block;}
+  .health-banner.ok{background:var(--ok-tint);color:var(--ok);}
+  .health-banner.warn{background:var(--amber-tint);color:#7a5313;}
+
+  /* GMP checklist */
+  .gmp-list{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
+  .gmp-list ul{margin:0 0 12px;padding-left:18px;font-size:13.5px;line-height:1.7;color:#3a453f;}
+  .checkbox-row{display:flex;gap:10px;align-items:flex-start;cursor:pointer;}
+  .checkbox-row input{width:19px;height:19px;margin-top:1px;accent-color:var(--teal);flex-shrink:0;}
+  .checkbox-row span{font-size:13.5px;font-weight:600;line-height:1.45;}
+
+  /* Camera */
+  .cam-box{
+    background:#0e1a17;border-radius:var(--radius);overflow:hidden;position:relative;
+    aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;margin-bottom:14px;
+  }
+  .cam-box video, .cam-box canvas, .cam-box img{width:100%;height:100%;object-fit:cover;display:block;}
+  .cam-box .placeholder{color:#8fa39c;font-size:13px;text-align:center;padding:20px;font-family:'Space Mono',monospace;}
+  .cam-actions{display:flex;gap:10px;}
+
+  button.btn{
+    border:none;border-radius:11px;padding:14px 18px;font-size:14.5px;font-weight:700;
+    cursor:pointer;font-family:'Manrope',sans-serif;letter-spacing:-0.005em;
+  }
+  button.btn-primary{background:var(--teal);color:#fff;width:100%;}
+  button.btn-primary:disabled{background:#b7c4bf;cursor:not-allowed;}
+  button.btn-secondary{background:#fff;color:var(--ink);border:1.5px solid var(--line);flex:1;}
+  button.btn-ghost{background:transparent;color:var(--teal);padding:14px 0;width:100%;}
+
+  .nav-row{display:flex;gap:10px;margin-top:22px;}
+  .nav-row button{flex:1;}
+
+  /* Summary (step 4) */
+  .summary-block{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+  .summary-block h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#8a8578;margin:0 0 10px;font-family:'Space Mono',monospace;}
+  .summary-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:14px;border-bottom:1px solid #f0eee6;}
+  .summary-row:last-child{border-bottom:none;}
+  .summary-row .k{color:#5c6b66;}
+  .summary-row .v{font-weight:700;text-align:right;}
+  .summary-photo{width:84px;height:84px;border-radius:10px;object-fit:cover;float:right;margin-left:12px;}
+
+  /* Success screen */
+  .success-wrap{text-align:center;padding:40px 10px 10px;}
+  .success-icon{
+    width:64px;height:64px;border-radius:50%;background:var(--teal);color:#fff;
+    display:flex;align-items:center;justify-content:center;margin:0 auto 18px;font-size:30px;
+  }
+  .pass-card{
+    background:var(--teal-dark);color:#fff;border-radius:18px;padding:22px;margin-top:22px;text-align:left;
+  }
+  .pass-card .pc-label{font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.08em;opacity:.65;text-transform:uppercase;}
+  .pass-card .pc-name{font-size:20px;font-weight:800;margin:3px 0 14px;}
+  .pass-card .pc-id{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;letter-spacing:.04em;background:rgba(255,255,255,.14);display:inline-block;padding:4px 10px;border-radius:7px;margin:6px 0 14px;}
+  .pass-card .pc-qr{background:#fff;border-radius:10px;padding:10px;display:inline-flex;align-items:center;justify-content:center;margin:4px 0 10px;}
+  .pc-qr-hint{font-size:11.5px;opacity:.8;margin:0 0 14px;line-height:1.4;}
+  .pass-row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-top:1px solid rgba(255,255,255,.15);}
+  .pass-row .v{font-weight:700;}
+
+  .error-msg{background:var(--red-tint);color:var(--red);border-radius:10px;padding:11px 13px;font-size:13.5px;font-weight:600;margin-bottom:14px;display:none;}
+  .error-msg.show{display:block;}
+
+  [data-lang]{display:none;}
+  html[data-active-lang="id"] [data-lang="id"]{display:inherit;}
+  html[data-active-lang="en"] [data-lang="en"]{display:inherit;}
+  html[data-active-lang="id"] span[data-lang="id"],
+  html[data-active-lang="en"] span[data-lang="en"]{display:inline;}
+
+/* =====================================================================
+   DESAIN SAVORIA — mengikuti Mock_Up_Form.png
+   Background foto pabrik + kartu krem + banner merah + input bulat hitam
+   ===================================================================== */
+body{
+  --card-max:1200px; /* lebar kartu form; mockup memakai ~83% lebar layar */
+  font-family:Arial,Helvetica,sans-serif;
+  background:#8fb4dd url("../images/background.png") center/cover no-repeat fixed;
+}
+.wrap{
+  width:min(var(--card-max),calc(100% - 24px));
+  margin:12px auto calc(40px + env(safe-area-inset-bottom));
+  background:var(--paper);
+  border-radius:4px;overflow:hidden;
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.45);
+}
+@media (min-width:760px){ .wrap{margin-top:24px;margin-bottom:48px;} }
+
+.banner{position:relative;line-height:0;background:#ED1B2F;}
+.banner-img{width:100%;height:auto;display:block;}
+.banner-menu{position:absolute;top:10px;left:10px;background:rgba(255,255,255,.95);border-color:transparent;}
+.banner-lang{position:absolute;top:10px;right:10px;border-color:transparent;line-height:1;}
+
+.card-inner{background:#fff;margin:clamp(10px,2.4vw,30px);padding:clamp(18px,4vw,56px);border-radius:4px;}
+
+.steps{margin-bottom:18px;}
+.steps .seg{height:5px;}
+.step-label{font-family:inherit;font-size:clamp(14px,1.6vw,18px);color:var(--ink);text-transform:none;letter-spacing:0;margin-bottom:4px;}
+h1.title{font-size:clamp(24px,3.4vw,38px);font-weight:700;letter-spacing:-.01em;margin:0 0 6px;}
+p.desc{font-size:clamp(14px,1.5vw,17px);color:var(--ink);margin:0 0 clamp(18px,3vw,34px);}
+
+.field{margin-bottom:clamp(14px,2.2vw,24px);}
+.field label{font-size:clamp(15px,1.6vw,18px);font-weight:700;margin-bottom:8px;}
+input[type=text],input[type=tel],input[type=email],select{
+  height:clamp(48px,5.4vw,58px);padding:0 22px;border:2px solid #111;border-radius:999px;
+  font-family:inherit;font-size:16px;
+}
+textarea{border:2px solid #111;border-radius:26px;padding:14px 22px;font-family:inherit;font-size:16px;}
+select{appearance:none;-webkit-appearance:none;padding-right:52px;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23111' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 22px center;}
+input:focus,select:focus,textarea:focus{outline:3px solid rgba(237,27,47,.35);outline-offset:1px;border-color:var(--teal);}
+input::placeholder,textarea::placeholder{color:#8a8578;}
+
+button.btn{border-radius:999px;font-family:inherit;padding:0 22px;height:clamp(48px,5.4vw,56px);font-size:16px;}
+button.btn-secondary{border:2px solid #111;}
+button.btn-primary:disabled{background:#e9a3aa;}
+button.btn-ghost{height:auto;}
+
+.hq{border:2px solid #111;border-radius:22px;}
+.hq .opt{border:2px solid #111;border-radius:999px;font-family:inherit;color:#111;}
+.cam-box{border-radius:22px;max-width:420px;margin-left:auto;margin-right:auto;}
+.cam-actions{max-width:420px;margin:0 auto;}
+.gmp-list,.summary-block{border:2px solid #111;border-radius:22px;}
+.summary-block h3{font-family:inherit;color:#555;}
+.lang-toggle,.lang-toggle button{font-family:inherit;}
+.pass-card{background:#ED1B2F;border-radius:22px;}
+.pass-card .pc-label,.pass-card .pc-id{font-family:inherit;}
+.success-icon{background:var(--ok);}
+.sidebar-nav a.active{background:var(--teal);}
+
+/* Layar kecil: tombol menu & bahasa pindah ke baris sendiri di atas banner
+   supaya tidak menutupi gambar produk */
+@media (max-width:600px){
+  .banner{display:grid;grid-template-columns:auto 1fr auto;align-items:center;padding:8px 10px 0;}
+  .banner-menu,.banner-lang{position:static;}
+  .banner-menu{grid-column:1;grid-row:1;}
+  .banner-lang{grid-column:3;grid-row:1;}
+  .banner-img{grid-column:1 / -1;grid-row:2;margin:6px -10px 0;width:calc(100% + 20px);max-width:none;}
+}
+
+/* ---- Tipe pertanyaan dari Form Builder ---- */
+input[type=number],input[type=date]{
+  width:100%;height:clamp(48px,5.4vw,58px);padding:0 22px;border:2px solid #111;border-radius:999px;
+  font-family:inherit;font-size:16px;background:#fff;color:var(--ink);
+}
+input[type=number]:focus,input[type=date]:focus{outline:3px solid rgba(237,27,47,.35);outline-offset:1px;border-color:var(--teal);}
+.choice-group{display:flex;flex-direction:column;gap:10px;padding:4px 2px;}
+.choice-group .checkbox-row span{font-weight:400;font-size:16px;}

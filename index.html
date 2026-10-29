@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ED1B2F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="assets/images/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/images/icon-192.png">
+<title>Buku Tamu Pabrik / Factory Visitor Registration</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<link rel="stylesheet" href="assets/css/form.css">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <img class="sidebar-logo" src="assets/images/logo.png" alt="Savoria Kreasi Rasa">
+    <button class="sidebar-close" onclick="closeSidebar()" aria-label="Tutup">✕</button>
+  </div>
+  <div class="sidebar-nav">
+    <a href="index.html" class="active">Form Tamu</a>
+    <a href="pages/admin.html">Admin</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <header class="banner">
+    <img class="banner-img" src="assets/images/banner-savoria.png" alt="Savoria - Make everyday taste great">
+    <button class="hamburger-btn banner-menu" onclick="openSidebar()" aria-label="Menu"><span></span></button>
+    <div class="lang-toggle banner-lang">
+      <button id="lang-id" onclick="setLang('id')">ID</button>
+      <button id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+  </header>
+
+  <main class="card-inner">
+  <div id="form-flow">
+    <div class="steps">
+      <div class="seg" data-seg="1"></div>
+      <div class="seg" data-seg="2"></div>
+      <div class="seg" data-seg="3"></div>
+      <div class="seg" data-seg="4"></div>
+    </div>
+
+    <!-- STEP 1: DATA UMUM -->
+    <section class="panel" id="panel-1">
+      <div class="step-label" data-lang="id">Langkah 1 dari 4</div>
+      <div class="step-label" data-lang="en">Step 1 of 4</div>
+      <h1 class="title" id="set-step1_title"></h1>
+      <p class="desc" id="set-step1_desc"></p>
+
+      <div id="general-questions"></div>
+
+      <div class="error-msg" id="err-1"></div>
+      <div class="nav-row">
+        <button class="btn btn-primary" onclick="goStep(2)"><span data-lang="id">Lanjut</span><span data-lang="en">Continue</span></button>
+      </div>
+    </section>
+
+    <!-- STEP 2: KESEHATAN -->
+    <section class="panel" id="panel-2">
+      <div class="step-label" data-lang="id">Langkah 2 dari 4</div>
+      <div class="step-label" data-lang="en">Step 2 of 4</div>
+      <h1 class="title" id="set-step2_title"></h1>
+      <p class="desc" id="set-step2_desc"></p>
+
+      <div id="health-questions"></div>
+
+      <div class="health-banner" id="health-banner"></div>
+
+      <div class="error-msg" id="err-2"></div>
+      <div class="nav-row">
+        <button class="btn btn-secondary" onclick="goStep(1)"><span data-lang="id">Kembali</span><span data-lang="en">Back</span></button>
+        <button class="btn btn-primary" onclick="goStep(3)"><span data-lang="id">Lanjut</span><span data-lang="en">Continue</span></button>
+      </div>
+    </section>
+
+    <!-- STEP 3: FOTO + GMP -->
+    <section class="panel" id="panel-3">
+      <div class="step-label" data-lang="id">Langkah 3 dari 4</div>
+      <div class="step-label" data-lang="en">Step 3 of 4</div>
+      <h1 class="title" id="set-step3_title"></h1>
+      <p class="desc" id="set-step3_desc"></p>
+
+      <div class="cam-box" id="cam-box">
+        <div class="placeholder" data-lang="id">Kamera belum aktif</div>
+        <div class="placeholder" data-lang="en">Camera not active</div>
+      </div>
+      <div class="cam-actions">
+        <button class="btn btn-secondary" id="btn-cam-start" onclick="startCamera()"><span data-lang="id">Aktifkan Kamera</span><span data-lang="en">Start Camera</span></button>
+        <button class="btn btn-secondary" id="btn-cam-shot" style="display:none" onclick="takeShot()"><span data-lang="id">Ambil Foto</span><span data-lang="en">Capture</span></button>
+        <button class="btn btn-secondary" id="btn-cam-retake" style="display:none" onclick="retakeShot()"><span data-lang="id">Ambil Ulang</span><span data-lang="en">Retake</span></button>
+      </div>
+
+      <div class="gmp-list" style="margin-top:20px;">
+        <ul id="set-gmp_rules"></ul>
+        <label class="checkbox-row">
+          <input type="checkbox" id="f-gmp">
+          <span><span data-lang="id">Saya memahami dan bersedia mematuhi ketentuan di atas</span><span data-lang="en">I understand and agree to comply with the above</span></span>
+        </label>
+      </div>
+
+      <div class="error-msg" id="err-3"></div>
+      <div class="nav-row">
+        <button class="btn btn-secondary" onclick="goStep(2)"><span data-lang="id">Kembali</span><span data-lang="en">Back</span></button>
+        <button class="btn btn-primary" onclick="goStep(4)"><span data-lang="id">Lanjut</span><span data-lang="en">Continue</span></button>
+      </div>
+    </section>
+
+    <!-- STEP 4: KONFIRMASI -->
+    <section class="panel" id="panel-4">
+      <div class="step-label" data-lang="id">Langkah 4 dari 4</div>
+      <div class="step-label" data-lang="en">Step 4 of 4</div>
+      <h1 class="title" data-lang="id">Konfirmasi Data</h1>
+      <h1 class="title" data-lang="en">Confirm Details</h1>
+      <p class="desc" data-lang="id">Periksa kembali data Anda sebelum mengirim.</p>
+      <p class="desc" data-lang="en">Please review your details before submitting.</p>
+
+      <div class="summary-block">
+        <img class="summary-photo" id="summary-photo" style="display:none">
+        <h3 data-lang="id">Data Diri</h3><h3 data-lang="en">Visitor Info</h3>
+        <div id="summary-general"></div>
+      </div>
+      <div class="summary-block">
+        <h3 data-lang="id">Hasil Skrining Kesehatan</h3><h3 data-lang="en">Health Screening Result</h3>
+        <div id="summary-health"></div>
+      </div>
+
+      <label class="checkbox-row" style="margin:6px 0 18px;">
+        <input type="checkbox" id="f-declare">
+        <span><span data-lang="id">Saya menyatakan bahwa seluruh data di atas benar dan dapat dipertanggungjawabkan.</span><span data-lang="en">I declare that all information above is true and accurate.</span></span>
+      </label>
+
+      <div class="error-msg" id="err-4"></div>
+      <div class="nav-row">
+        <button class="btn btn-secondary" onclick="goStep(3)"><span data-lang="id">Kembali</span><span data-lang="en">Back</span></button>
+        <button class="btn btn-primary" id="btn-submit" onclick="submitVisitor()"><span data-lang="id">Kirim &amp; Daftar</span><span data-lang="en">Submit &amp; Register</span></button>
+      </div>
+    </section>
+  </div>
+
+  <!-- SUCCESS SCREEN -->
+  <div class="success-wrap" id="success-screen" style="display:none">
+    <div class="success-icon">✓</div>
+    <h1 class="title" data-lang="id">Pendaftaran Berhasil</h1>
+    <h1 class="title" data-lang="en">Registration Complete</h1>
+    <p class="desc" data-lang="id">Tunjukkan layar ini kepada petugas keamanan.</p>
+    <p class="desc" data-lang="en">Show this screen to security staff.</p>
+
+    <div class="pass-card">
+      <div class="pc-label" data-lang="id">Kartu Tamu</div>
+      <div class="pc-label" data-lang="en">Visitor Pass</div>
+      <div class="pc-name" id="pass-name"></div>
+      <div class="pc-id" id="pass-id"></div>
+      <div class="pc-qr" id="pass-qr"></div>
+      <p class="pc-qr-hint" data-lang="id">Tunjukkan QR ini untuk dikonfirmasi oleh host / GS / petugas keamanan.</p>
+      <p class="pc-qr-hint" data-lang="en">Show this QR code to have your visit confirmed by your host, GS, or security.</p>
+      <div class="pass-row"><span data-lang="id">Perusahaan</span><span data-lang="en">Company</span><span class="v" id="pass-company"></span></div>
+      <div class="pass-row"><span data-lang="id">Menemui</span><span data-lang="en">Visiting</span><span class="v" id="pass-host"></span></div>
+      <div class="pass-row"><span data-lang="id">Waktu Masuk</span><span data-lang="en">Check-in Time</span><span class="v" id="pass-time"></span></div>
+      <div class="pass-row"><span data-lang="id">Status Kesehatan</span><span data-lang="en">Health Status</span><span class="v" id="pass-health"></span></div>
+    </div>
+
+    <button class="btn btn-ghost" onclick="resetForm()" style="margin-top:24px;">
+      <span data-lang="id">Daftarkan Tamu Baru</span><span data-lang="en">+ Register New Visitor</span>
+    </button>
+  </div>
+  </main>
+
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/form.js"></script>
+<script src="assets/js/pwa.js"></script>
+</body>
+</html>
