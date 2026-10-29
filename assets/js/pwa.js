@@ -8,10 +8,19 @@
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault(); deferred = e;
     if (document.getElementById('pwa-install')) return;
-    const b = document.createElement('button');
-    b.id = 'pwa-install'; b.textContent = '⬇ Pasang Aplikasi';
-    b.style.cssText = 'position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:9999;background:#ED1B2F;color:#fff;border:0;border-radius:999px;padding:12px 18px;font:700 14px sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.25);';
-    b.onclick = async () => { b.remove(); deferred.prompt(); await deferred.userChoice; deferred = null; };
+    try { if (sessionStorage.getItem('pwa-dismissed')) return; } catch (_) {}
+    const b = document.createElement('div');
+    b.id = 'pwa-install';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:900;display:flex;align-items:center;background:#111;color:#fff;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.3);font:700 13px sans-serif;overflow:hidden;';
+    const go = document.createElement('button');
+    go.textContent = '⬇ Pasang Aplikasi';
+    go.style.cssText = 'background:none;border:0;color:#fff;font:inherit;padding:11px 8px 11px 16px;cursor:pointer;';
+    go.onclick = async () => { b.remove(); deferred.prompt(); await deferred.userChoice; deferred = null; };
+    const x = document.createElement('button');
+    x.textContent = '✕'; x.setAttribute('aria-label', 'Tutup');
+    x.style.cssText = 'background:none;border:0;color:#bbb;font:inherit;padding:11px 14px 11px 6px;cursor:pointer;';
+    x.onclick = () => { b.remove(); try { sessionStorage.setItem('pwa-dismissed', '1'); } catch (_) {} };
+    b.append(go, x);
     document.body.appendChild(b);
   });
   window.addEventListener('appinstalled', () => { const b = document.getElementById('pwa-install'); if (b) b.remove(); });

@@ -122,25 +122,46 @@ function buildQuestionEl(q){
       row.append(cb, sp); input.appendChild(row);
     });
   } else if (q.field_type === 'host'){
-    // Pilihan host yang bisa dicari: ketik nama / nomor / departemen, lalu pilih dari saran.
+    // Pencarian host: ketik nama/departemen, lalu ketuk salah satu hasil.
     const label = e => e.full_name + (e.department ? ' — ' + e.department : '');
+    const wrap = document.createElement('div'); wrap.className = 'combo';
     input = document.createElement('input');
     input.type = 'text';
-    input.setAttribute('list', 'hostlist-' + q.id);
     input.autocomplete = 'off';
+    input.setAttribute('autocapitalize', 'words');
     input.placeholder = EMPLOYEES.length === 0
       ? (L==='id' ? 'Tidak ada data karyawan' : 'No employees found')
-      : (L==='id' ? 'Ketik untuk mencari nama karyawan…' : 'Type to search employee name…');
-    const dl = document.createElement('datalist'); dl.id = 'hostlist-' + q.id;
-    EMPLOYEES.forEach(e => { const o = document.createElement('option'); o.value = label(e); dl.appendChild(o); });
+      : (L==='id' ? 'Ketik nama untuk mencari…' : 'Type a name to search…');
+    const list = document.createElement('ul'); list.className = 'combo-list';
     const cur = EMPLOYEES.find(e => e.id === answers[q.id]);
     input.value = cur ? label(cur) : '';
-    const syncHost = () => {
-      const m = EMPLOYEES.find(e => label(e) === input.value.trim());
-      answers[q.id] = m ? m.id : '';
+    const matches = () => {
+      const words = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      return EMPLOYEES.filter(e => { const h = label(e).toLowerCase(); return words.every(w => h.includes(w)); });
     };
-    input.addEventListener('input', syncHost); input.addEventListener('change', syncHost);
-    f.append(input, dl);
+    const choose = e => { answers[q.id] = e.id; input.value = label(e); list.style.display = 'none'; };
+    const show = () => {
+      const m = matches().slice(0, 8);
+      list.innerHTML = '';
+      if (!m.length){
+        const li = document.createElement('li'); li.className = 'empty';
+        li.textContent = L==='id' ? 'Tidak ditemukan' : 'No match'; list.appendChild(li);
+      }
+      m.forEach(e => {
+        const li = document.createElement('li'); li.textContent = label(e);
+        li.addEventListener('pointerdown', ev => { ev.preventDefault(); choose(e); });
+        list.appendChild(li);
+      });
+      list.style.display = 'block';
+    };
+    input.addEventListener('input', () => { answers[q.id] = ''; show(); });
+    input.addEventListener('focus', show);
+    input.addEventListener('blur', () => setTimeout(() => {
+      list.style.display = 'none';
+      if (!answers[q.id] && input.value.trim()){ const m = matches(); if (m.length === 1) choose(m[0]); }
+    }, 150));
+    wrap.append(input, list);
+    f.appendChild(wrap);
     return f;
   } else if (q.field_type === 'choice'){
     input = document.createElement('select');
@@ -531,7 +552,7 @@ function showSuccess(data){
   const qrBox = document.getElementById('pass-qr');
   qrBox.innerHTML = '';
   if (data.visitor_id){
-    new QRCode(qrBox, { text: data.visitor_id, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
+    new QRCode(qrBox, { text: data.visitor_id, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
   }
   document.getElementById('pass-company').textContent = data.company;
   document.getElementById('pass-host').textContent = data.host_name;
@@ -539,6 +560,100 @@ function showSuccess(data){
   document.getElementById('pass-health').textContent = data.health_clear
     ? (lang==='id' ? 'Baik' : 'Clear')
     : (lang==='id' ? 'Perlu Ditinjau' : 'Needs Review');
+}
+
+// ---------- UNDUH KARTU TAMU (PNG) ----------
+async function downloadPass(){
+  const btn = document.getElementById('btn-download-pass');
+  const lang = document.documentElement.getAttribute('data-active-lang') === 'en' ? 'en' : 'id';
+  const T = {
+    id: { title:'KARTU TAMU', hint:'Tunjukkan QR ini untuk dikonfirmasi oleh host / GS / petugas keamanan.',
+          rows:['Perusahaan','Menemui','Waktu Masuk','Status Kesehatan'] },
+    en: { title:'VISITOR PASS', hint:'Show this QR code to have your visit confirmed by your host, GS, or security.',
+          rows:['Company','Visiting','Check-in Time','Health Status'] }
+  }[lang];
+  const txt = id => document.getElementById(id).textContent.trim();
+  const name = txt('pass-name'), vid = txt('pass-id');
+  const values = [txt('pass-company'), txt('pass-host'), txt('pass-time'), txt('pass-health')];
+  if (btn) btn.disabled = true;
+  try {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    // QR resolusi tinggi di kanvas tersendiri
+    const tmp = document.createElement('div');
+    new QRCode(tmp, { text: vid, width: 440, height: 440, correctLevel: QRCode.CorrectLevel.M });
+    const qrCanvas = tmp.querySelector('canvas');
+
+    const FONT = 'Manrope, "Segoe UI", Roboto, Arial, sans-serif';
+    const W = 760, M = 28, PAD = 44, IN = W - 2*M - 2*PAD;
+    const wrap = (ctx, text, maxW) => {
+      const words = String(text).split(/\s+/); const lines = []; let cur = '';
+      words.forEach(w => {
+        const t = cur ? cur + ' ' + w : w;
+        if (ctx.measureText(t).width <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; }
+      });
+      if (cur) lines.push(cur);
+      return lines;
+    };
+    const rr = (ctx, x, y, w, h, r) => {
+      ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r);
+      ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath();
+    };
+    const draw = (ctx, H) => {
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ED1B2F'; rr(ctx, M, M, W-2*M, H-2*M, 44); ctx.fill();
+      const x0 = M + PAD; let y = M + PAD;
+      ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+
+      ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.font = `600 22px ${FONT}`;
+      ctx.fillText(T.title.split('').join(String.fromCharCode(8202)), x0, y); y += 40;
+
+      ctx.fillStyle = '#fff'; ctx.font = `800 46px ${FONT}`;
+      wrap(ctx, name, IN).forEach(l => { ctx.fillText(l, x0, y); y += 56; });
+      y += 10;
+
+      ctx.font = `700 32px "Space Mono", Consolas, monospace`;
+      const idw = ctx.measureText(vid).width + 40;
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; rr(ctx, x0, y, idw, 52, 14); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText(vid, x0 + 20, y + 9); y += 52 + 30;
+
+      const box = 440 + 2*26, bx = (W - box) / 2;
+      ctx.fillStyle = '#fff'; rr(ctx, bx, y, box, box, 28); ctx.fill();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(qrCanvas, bx + 26, y + 26, 440, 440); y += box + 24;
+
+      ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.font = `500 22px ${FONT}`; ctx.textAlign = 'center';
+      wrap(ctx, T.hint, IN - 40).forEach(l => { ctx.fillText(l, W/2, y); y += 30; });
+      y += 18; ctx.textAlign = 'left';
+
+      T.rows.forEach((label, i) => {
+        ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x0, y, IN, 2); y += 16;
+        ctx.font = `700 26px ${FONT}`;
+        const lines = wrap(ctx, values[i], IN * 0.58);
+        ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.font = `500 24px ${FONT}`; ctx.textAlign = 'left';
+        ctx.fillText(label, x0, y + 2);
+        ctx.fillStyle = '#fff'; ctx.font = `700 26px ${FONT}`; ctx.textAlign = 'right';
+        lines.forEach((l, k) => ctx.fillText(l, x0 + IN, y + k*34));
+        y += Math.max(1, lines.length) * 34 + 16; ctx.textAlign = 'left';
+      });
+      return y + PAD - 8 + M;
+    };
+    const m = document.createElement('canvas').getContext('2d');
+    const H = Math.ceil(draw(m, 3000));
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    draw(c.getContext('2d'), H);
+
+    const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+    const file = new File([blob], `kartu-tamu-${vid}.png`, { type: 'image/png' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(file); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) {
+    console.error(e);
+    alert(lang === 'id' ? 'Gagal membuat gambar kartu. Coba screenshot layar ini.' : 'Could not create the pass image. Please take a screenshot.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function resetForm(){

@@ -168,7 +168,12 @@
       <div class="pass-row"><span data-lang="id">Status Kesehatan</span><span data-lang="en">Health Status</span><span class="v" id="pass-health"></span></div>
     </div>
 
-    <button class="btn btn-ghost" onclick="resetForm()" style="margin-top:24px;">
+    <button class="btn btn-primary" id="btn-download-pass" onclick="downloadPass()" style="margin-top:22px;">
+      <span data-lang="id">⬇ Unduh Kartu Tamu</span><span data-lang="en">⬇ Download Visitor Pass</span>
+    </button>
+    <p class="pc-save-hint"><span data-lang="id">Simpan kartu ini di galeri, lalu tunjukkan QR-nya ke petugas.</span><span data-lang="en">Save this pass to your gallery and show the QR to staff.</span></p>
+
+    <button class="btn btn-ghost" onclick="resetForm()" style="margin-top:6px;">
       <span data-lang="id">Daftarkan Tamu Baru</span><span data-lang="en">+ Register New Visitor</span>
     </button>
   </div>

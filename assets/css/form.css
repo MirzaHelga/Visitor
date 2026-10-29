@@ -262,3 +262,22 @@ input[type=number],input[type=date]{
 input[type=number]:focus,input[type=date]:focus{outline:3px solid rgba(237,27,47,.35);outline-offset:1px;border-color:var(--teal);}
 .choice-group{display:flex;flex-direction:column;gap:10px;padding:4px 2px;}
 .choice-group .checkbox-row span{font-weight:400;font-size:16px;}
+
+/* ---- Pencarian host (combo) ---- */
+.combo{position:relative;}
+.combo-list{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;margin:0;padding:6px;list-style:none;background:#fff;border:2px solid #111;border-radius:18px;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.18);}
+.combo-list li{padding:11px 14px;border-radius:12px;font-size:15px;cursor:pointer;}
+.combo-list li:active,.combo-list li:hover{background:#fde8ea;}
+.combo-list li.empty{color:#8a8578;cursor:default;}
+.combo-list li.empty:hover{background:none;}
+
+/* ---- Kartu tamu: rapikan layout ---- */
+.pass-card{padding:24px 22px 18px;}
+.pass-card .pc-name{font-size:22px;line-height:1.25;word-break:break-word;}
+.pass-card .pc-qr{display:flex;width:max-content;max-width:100%;margin:6px auto 12px;padding:14px;border-radius:16px;}
+.pass-card .pc-qr canvas,.pass-card .pc-qr img{display:block;width:200px !important;height:200px !important;}
+.pc-qr-hint{text-align:center;margin:0 6px 16px;}
+.pass-row{gap:16px;align-items:flex-start;padding:9px 0;}
+.pass-row > span:first-child,.pass-row > span[data-lang]{flex-shrink:0;opacity:.8;}
+.pass-row .v{text-align:right;margin-left:auto;word-break:break-word;opacity:1 !important;}
+.pc-save-hint{font-size:12.5px;color:#6b6b6b;margin:10px 16px 0;line-height:1.4;}
