@@ -125,7 +125,7 @@ function buildQuestionEl(q){
     // Pilihan host yang bisa dicari: ketik nama / nomor / departemen, lalu pilih dari saran.
     const label = e => e.full_name + (e.department ? ' — ' + e.department : '');
     input = document.createElement('input');
-    input.type = 'search';
+    input.type = 'text';
     input.setAttribute('list', 'hostlist-' + q.id);
     input.autocomplete = 'off';
     input.placeholder = EMPLOYEES.length === 0
