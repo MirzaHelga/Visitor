@@ -52,8 +52,10 @@ const LEGACY_HEALTH_KEYS = ['health_fever','health_diarrhea_vomiting','health_co
 
 let QUESTIONS = DEFAULT_QUESTIONS.slice();
 let EMPLOYEES = [];
+let EMPLOYEES_READY = false;
 const answers = {};   // id pertanyaan -> string | boolean | string[]
 
+function qk(q){ return q.legacy_key || q.id; }
 function qLabel(q){ return lang()==='id' ? q.label_id : (q.label_en || q.label_id); }
 function sectionQs(section){ return QUESTIONS.filter(q => q.section === section); }
 
@@ -69,10 +71,20 @@ async function loadQuestions(){
 }
 
 async function loadHostOptions(){
-  const { data, error } = await supabaseClient
-    .from('employees').select('id, full_name, department')
-    .eq('active', true).order('full_name').limit(5000);
-  EMPLOYEES = (!error && data) ? data : [];
+  for (let attempt = 0; attempt < 3; attempt++){
+    const { data, error } = await supabaseClient
+      .from('employees').select('id, full_name, department')
+      .eq('active', true).order('full_name').limit(5000);
+    if (!error && data){
+      EMPLOYEES = data;
+      EMPLOYEES_READY = true;
+      renderQuestions();
+      return;
+    }
+    await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+  }
+  EMPLOYEES = [];
+  EMPLOYEES_READY = true;
   renderQuestions();
 }
 
@@ -87,9 +99,9 @@ function buildQuestionEl(q){
     [[false, L==='id'?'Tidak':'No'], [true, L==='id'?'Ya':'Yes']].forEach(([val, txt]) => {
       const o = document.createElement('div');
       o.className = 'opt'; o.textContent = txt;
-      if (answers[q.id] === val) o.classList.add(val ? 'selected-yes' : 'selected-no');
+      if (answers[qk(q)] === val) o.classList.add(val ? 'selected-yes' : 'selected-no');
       o.onclick = () => {
-        answers[q.id] = val;
+        answers[qk(q)] = val;
         opts.querySelectorAll('.opt').forEach(x => x.classList.remove('selected-no','selected-yes'));
         o.classList.add(val ? 'selected-yes' : 'selected-no');
         updateHealthBanner();
@@ -109,18 +121,24 @@ function buildQuestionEl(q){
   let input;
   if (q.field_type === 'multichoice'){
     input = document.createElement('div'); input.className = 'choice-group';
-    const cur = Array.isArray(answers[q.id]) ? answers[q.id] : [];
+    const cur = Array.isArray(answers[qk(q)]) ? answers[qk(q)] : [];
     (q.options || []).forEach(opt => {
       const row = document.createElement('label'); row.className = 'checkbox-row';
       const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = cur.includes(opt);
       cb.onchange = () => {
-        const set = new Set(Array.isArray(answers[q.id]) ? answers[q.id] : []);
+        const set = new Set(Array.isArray(answers[qk(q)]) ? answers[qk(q)] : []);
         cb.checked ? set.add(opt) : set.delete(opt);
-        answers[q.id] = (q.options || []).filter(o => set.has(o));
+        answers[qk(q)] = (q.options || []).filter(o => set.has(o));
       };
       const sp = document.createElement('span'); sp.textContent = opt;
       row.append(cb, sp); input.appendChild(row);
     });
+  } else if (q.field_type === 'host' && EMPLOYEES_READY && EMPLOYEES.length === 0){
+    input = document.createElement('input');
+    input.type = 'text';
+    input.autocomplete = 'off';
+    input.placeholder = L==='id' ? 'Ketik nama yang akan ditemui' : 'Type the name of the person to visit';
+    input.value = typeof answers[qk(q)] === 'string' ? answers[qk(q)] : '';
   } else if (q.field_type === 'host'){
     // Pencarian host: ketik nama/departemen, lalu ketuk salah satu hasil.
     const label = e => e.full_name + (e.department ? ' — ' + e.department : '');
@@ -133,13 +151,13 @@ function buildQuestionEl(q){
       ? (L==='id' ? 'Tidak ada data karyawan' : 'No employees found')
       : (L==='id' ? 'Ketik nama untuk mencari…' : 'Type a name to search…');
     const list = document.createElement('ul'); list.className = 'combo-list';
-    const cur = EMPLOYEES.find(e => e.id === answers[q.id]);
+    const cur = EMPLOYEES.find(e => e.id === answers[qk(q)]);
     input.value = cur ? label(cur) : '';
     const matches = () => {
       const words = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
       return EMPLOYEES.filter(e => { const h = label(e).toLowerCase(); return words.every(w => h.includes(w)); });
     };
-    const choose = e => { answers[q.id] = e.id; input.value = label(e); list.style.display = 'none'; };
+    const choose = e => { answers[qk(q)] = e.id; input.value = label(e); list.style.display = 'none'; };
     const show = () => {
       const m = matches().slice(0, 8);
       list.innerHTML = '';
@@ -154,11 +172,11 @@ function buildQuestionEl(q){
       });
       list.style.display = 'block';
     };
-    input.addEventListener('input', () => { answers[q.id] = ''; show(); });
+    input.addEventListener('input', () => { answers[qk(q)] = ''; show(); });
     input.addEventListener('focus', show);
     input.addEventListener('blur', () => setTimeout(() => {
       list.style.display = 'none';
-      if (!answers[q.id] && input.value.trim()){ const m = matches(); if (m.length === 1) choose(m[0]); }
+      if (!answers[qk(q)] && input.value.trim()){ const m = matches(); if (m.length === 1) choose(m[0]); }
     }, 150));
     wrap.append(input, list);
     f.appendChild(wrap);
@@ -167,7 +185,7 @@ function buildQuestionEl(q){
     input = document.createElement('select');
     const first = document.createElement('option'); first.value = ''; first.textContent = pick; input.appendChild(first);
     (q.options || []).forEach(opt => { const o = document.createElement('option'); o.value = opt; o.textContent = opt; input.appendChild(o); });
-    input.value = typeof answers[q.id] === 'string' ? answers[q.id] : '';
+    input.value = typeof answers[qk(q)] === 'string' ? answers[qk(q)] : '';
   } else {
     input = document.createElement(q.field_type === 'textarea' ? 'textarea' : 'input');
     if (q.field_type !== 'textarea'){
@@ -176,10 +194,10 @@ function buildQuestionEl(q){
       if (q.legacy_key === 'full_name') input.autocomplete = 'name';
     }
     if (q.placeholder) input.placeholder = q.placeholder;
-    input.value = typeof answers[q.id] === 'string' ? answers[q.id] : '';
+    input.value = typeof answers[qk(q)] === 'string' ? answers[qk(q)] : '';
   }
   if (q.field_type !== 'multichoice'){
-    const sync = () => { answers[q.id] = input.value; };
+    const sync = () => { answers[qk(q)] = input.value; };
     input.addEventListener('input', sync); input.addEventListener('change', sync);
   }
   f.appendChild(input);
@@ -192,9 +210,30 @@ function renderSection(section, containerId){
   sectionQs(section).forEach(q => wrap.appendChild(buildQuestionEl(q)));
 }
 function renderQuestions(){
+  const ae = document.activeElement;
+  let cont = null, idx = -1, val = null, selStart = null, selEnd = null;
+  ['general-questions', 'health-questions'].forEach(id => {
+    const c = document.getElementById(id);
+    if (c && ae && c !== ae && c.contains(ae)){
+      cont = c;
+      idx = Array.from(c.querySelectorAll('input,textarea,select')).indexOf(ae);
+      if (ae.type !== 'checkbox'){
+        val = ae.value;
+        try { selStart = ae.selectionStart; selEnd = ae.selectionEnd; } catch (_) {}
+      }
+    }
+  });
   renderSection('general', 'general-questions');
   renderSection('health', 'health-questions');
   updateHealthBanner();
+  if (cont && idx >= 0){
+    const el = cont.querySelectorAll('input,textarea,select')[idx];
+    if (el){
+      if (val !== null && el.type !== 'checkbox' && el.tagName !== 'SELECT' && el.value !== val) el.value = val;
+      el.focus({ preventScroll: true });
+      try { if (selStart !== null) el.setSelectionRange(selStart, selEnd); } catch (_) {}
+    }
+  }
 }
 
 
@@ -265,13 +304,13 @@ async function loadSettings(){
 }
 
 // ---------- HEALTH RESULT ----------
-function flaggedQs(){ return sectionQs('health').filter(q => q.field_type === 'yesno' && q.flag_on_yes); }
-function isHealthClear(){ return flaggedQs().every(q => answers[q.id] !== true); }
+function flaggedQs(){ return QUESTIONS.filter(q => q.field_type === 'yesno' && q.flag_on_yes); }
+function isHealthClear(){ return flaggedQs().every(q => answers[qk(q)] !== true); }
 
 function updateHealthBanner(){
   const banner = document.getElementById('health-banner');
-  const fq = flaggedQs();
-  if (fq.length === 0 || !fq.every(q => typeof answers[q.id] === 'boolean')) { banner.className = 'health-banner'; return; }
+  const fq = flaggedQs().filter(q => q.section === 'health');
+  if (fq.length === 0 || !fq.every(q => typeof answers[qk(q)] === 'boolean')) { banner.className = 'health-banner'; return; }
   const L = lang();
   if (isHealthClear()){
     banner.className = 'health-banner ok show';
@@ -289,6 +328,7 @@ let currentStep = 1;
 function goStep(n){
   if (n > currentStep && !validateStep(currentStep)) return;
   currentStep = n;
+  if (n !== 3 && mediaStream && !capturedPhotoBlob){ stopCamera(); resetCamUI(); }
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-'+n).classList.add('active');
   document.querySelectorAll('.seg').forEach((s,i) => {
@@ -313,7 +353,7 @@ function showErr(step, msgId, msgEn){
 function clearErr(step){ document.getElementById('err-'+step).classList.remove('show'); }
 
 function isAnswered(q){
-  const v = answers[q.id];
+  const v = answers[qk(q)];
   if (q.field_type === 'yesno') return typeof v === 'boolean';
   if (q.field_type === 'multichoice') return Array.isArray(v) && v.length > 0;
   return typeof v === 'string' && v.trim() !== '';
@@ -328,7 +368,7 @@ function validateStep(step){
       else showErr(2, 'Mohon jawab semua pertanyaan kesehatan', 'Please answer all health questions');
       return false;
     }
-    const badEmail = sectionQs(section).find(q => q.field_type === 'email' && answers[q.id] && !/^\S+@\S+\.\S+$/.test(answers[q.id].trim()));
+    const badEmail = sectionQs(section).find(q => q.field_type === 'email' && answers[qk(q)] && !/^\S+@\S+\.\S+$/.test(answers[qk(q)].trim()));
     if (badEmail){
       showErr(step, 'Format email tidak valid', 'Invalid email format');
       return false;
@@ -352,10 +392,30 @@ function validateStep(step){
 // ---------- CAMERA ----------
 let mediaStream = null;
 let capturedPhotoBlob = null;
+let capturedPhotoUrl = null;
+let uploadedPhotoPath = null;
+let uploadedPhotoFor = null;
+
+function stopCamera(){
+  if (mediaStream){
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+}
+
+function resetCamUI(){
+  document.getElementById('btn-cam-shot').style.display = 'none';
+  document.getElementById('btn-cam-retake').style.display = 'none';
+  document.getElementById('btn-cam-start').style.display = 'block';
+  document.getElementById('cam-box').innerHTML = `<div class="placeholder" data-lang="id">Kamera belum aktif</div><div class="placeholder" data-lang="en">Camera not active</div>`;
+}
+
+window.addEventListener('pagehide', stopCamera);
 
 async function startCamera(){
   const camBox = document.getElementById('cam-box');
   try {
+    stopCamera();
     mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
     camBox.innerHTML = '<video id="cam-video" autoplay playsinline></video>';
     document.getElementById('cam-video').srcObject = mediaStream;
@@ -404,36 +464,41 @@ async function compressPhoto(sourceCanvas){
 
 async function takeShot(){
   const video = document.getElementById('cam-video');
+  if (!video || !video.videoWidth || !video.videoHeight) return;
   const canvas = document.createElement('canvas');
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
 
   const blob = await compressPhoto(canvas);
+  if (!blob) return;
+  if (capturedPhotoUrl) URL.revokeObjectURL(capturedPhotoUrl);
   capturedPhotoBlob = blob;
-  const url = URL.createObjectURL(blob);
-  document.getElementById('cam-box').innerHTML = `<img src="${url}">`;
+  capturedPhotoUrl = URL.createObjectURL(blob);
+  document.getElementById('cam-box').innerHTML = `<img src="${capturedPhotoUrl}">`;
   document.getElementById('btn-cam-shot').style.display = 'none';
   document.getElementById('btn-cam-retake').style.display = 'block';
-  if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+  stopCamera();
 }
 
 function retakeShot(){
+  stopCamera();
   capturedPhotoBlob = null;
-  document.getElementById('btn-cam-retake').style.display = 'none';
-  document.getElementById('btn-cam-start').style.display = 'block';
-  const camBox = document.getElementById('cam-box');
-  camBox.innerHTML = `<div class="placeholder" data-lang="id">Kamera belum aktif</div><div class="placeholder" data-lang="en">Camera not active</div>`;
+  if (capturedPhotoUrl){ URL.revokeObjectURL(capturedPhotoUrl); capturedPhotoUrl = null; }
+  const sp = document.getElementById('summary-photo');
+  if (sp){ sp.removeAttribute('src'); sp.style.display = 'none'; }
+  resetCamUI();
 }
 
 // ---------- SUMMARY ----------
 function hostName(id){
   const e = EMPLOYEES.find(x => x.id === id);
-  return e ? e.full_name : '';
+  if (e) return e.full_name;
+  return (EMPLOYEES_READY && EMPLOYEES.length === 0 && typeof id === 'string') ? id.trim() : '';
 }
 // Teks jawaban untuk ditampilkan / disimpan
 function displayValue(q){
-  const v = answers[q.id];
+  const v = answers[qk(q)];
   if (q.field_type === 'yesno') return typeof v === 'boolean' ? (v ? (lang()==='id'?'Ya':'Yes') : (lang()==='id'?'Tidak':'No')) : '';
   if (q.field_type === 'multichoice') return Array.isArray(v) ? v.join(', ') : '';
   if (q.field_type === 'host') return hostName(v);
@@ -455,8 +520,8 @@ function renderSummary(){
      </span></div>`;
 
   const photoImg = document.getElementById('summary-photo');
-  if (capturedPhotoBlob){
-    photoImg.src = URL.createObjectURL(capturedPhotoBlob);
+  if (capturedPhotoBlob && capturedPhotoUrl){
+    photoImg.src = capturedPhotoUrl;
     photoImg.style.display = 'block';
   }
 }
@@ -481,10 +546,10 @@ function buildPayload(photoUrl){
 
   const snapshot = [];
   QUESTIONS.forEach(q => {
-    const v = answers[q.id];
+    const v = answers[qk(q)];
     const isYN = q.field_type === 'yesno';
     if (q.legacy_key === 'host'){
-      p.host_employee_id = v || null;
+      p.host_employee_id = EMPLOYEES.some(x => x.id === v) ? v : null;
       p.host_name = hostName(v);
     } else if (LEGACY_HEALTH_KEYS.includes(q.legacy_key) && isYN){
       p[q.legacy_key] = v === true;
@@ -518,12 +583,18 @@ async function submitVisitor(){
   try {
     let photoUrl = null;
     if (capturedPhotoBlob){
-      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.jpg`;
-      const { data: uploadData, error: uploadErr } = await supabaseClient
-        .storage.from('visitor-photos')
-        .upload(fileName, capturedPhotoBlob, { contentType: 'image/jpeg' });
-      if (uploadErr) throw uploadErr;
-      photoUrl = uploadData.path;
+      if (uploadedPhotoFor === capturedPhotoBlob && uploadedPhotoPath){
+        photoUrl = uploadedPhotoPath;
+      } else {
+        const fileName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.jpg`;
+        const { data: uploadData, error: uploadErr } = await supabaseClient
+          .storage.from('visitor-photos')
+          .upload(fileName, capturedPhotoBlob, { contentType: 'image/jpeg' });
+        if (uploadErr) throw uploadErr;
+        photoUrl = uploadData.path;
+        uploadedPhotoPath = photoUrl;
+        uploadedPhotoFor = capturedPhotoBlob;
+      }
     }
 
     const payload = buildPayload(photoUrl);
@@ -660,7 +731,8 @@ function resetForm(){
   Object.keys(answers).forEach(k => delete answers[k]);
   document.getElementById('f-gmp').checked = false;
   document.getElementById('f-declare').checked = false;
-  capturedPhotoBlob = null;
+  uploadedPhotoPath = null;
+  uploadedPhotoFor = null;
   retakeShot();
   renderQuestions();
   document.getElementById('form-flow').style.display = 'block';

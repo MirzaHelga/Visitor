@@ -7,6 +7,8 @@ let currentProfile = null;   // { id, roles, employee_id }
 const ALL_ROLES = ['employee','gs','security','superadmin'];
 let currentConfirmMode = null; // 'primary' | 'secondary' | 'exit'
 let allEmployeesCache = [];
+let loadSeq = 0;
+let totalVisitors = 0;
 
 // ---------- SIDEBAR ----------
 function openSidebar(){
@@ -50,6 +52,15 @@ async function doLogin(){
 async function doLogout(){
   await supabaseClient.auth.signOut();
   stopScanner();
+  loadSeq++;
+  allVisitors = [];
+  totalVisitors = 0;
+  selectedIds.clear();
+  currentRoles = [];
+  currentRole = null;
+  currentProfile = null;
+  document.getElementById('table-body').innerHTML = '';
+  document.getElementById('login-pass').value = '';
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('sidebar-nav-dynamic').style.display = 'none';
@@ -138,37 +149,39 @@ function showView(name, mode){
 
 // ---------- DATA: VISITORS ----------
 async function loadVisitors(){
-  const { data, error } = await supabaseClient
+  const seq = ++loadSeq;
+  const { data, error, count } = await supabaseClient
     .from('visitors')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .limit(500);
+  if (seq !== loadSeq) return;
   if (error){
     alert('Gagal memuat data: ' + error.message);
     return;
   }
   allVisitors = data;
+  totalVisitors = typeof count === 'number' ? count : data.length;
   selectedIds.clear();
   updateSelectedUI();
-
-  // resolve signed URLs for photos
-  for (const v of allVisitors){
-    if (v.photo_url){
-      const { data: signed } = await supabaseClient.storage
-        .from('visitor-photos')
-        .createSignedUrl(v.photo_url, 3600);
-      v._photo_signed_url = signed ? signed.signedUrl : null;
-    }
-  }
-
   renderStats();
+  applyFilter();
+
+  const paths = allVisitors.filter(v => v.photo_url).map(v => v.photo_url);
+  if (paths.length === 0) return;
+  const { data: signed } = await supabaseClient.storage
+    .from('visitor-photos')
+    .createSignedUrls(paths, 3600);
+  if (seq !== loadSeq || !signed) return;
+  const urlByPath = new Map(signed.filter(x => x.signedUrl).map(x => [x.path, x.signedUrl]));
+  allVisitors.forEach(v => { if (v.photo_url) v._photo_signed_url = urlByPath.get(v.photo_url) || null; });
   applyFilter();
 }
 
 function renderStats(){
   const t = document.getElementById('stat-total');
   if (!t) return;
-  document.getElementById('stat-total').textContent = allVisitors.length;
+  document.getElementById('stat-total').textContent = totalVisitors;
   const today = new Date().toDateString();
   document.getElementById('stat-today').textContent =
     allVisitors.filter(v => new Date(v.created_at).toDateString() === today).length;
@@ -177,7 +190,7 @@ function renderStats(){
   document.getElementById('stat-noprimary').textContent =
     allVisitors.filter(v => !v.confirmed_primary_at && !v.confirmed_secondary_at).length;
   document.getElementById('stat-noexit').textContent =
-    allVisitors.filter(v => !v.check_out_at).length;
+    allVisitors.filter(v => !v.check_out_at && new Date(v.created_at).toDateString() === today).length;
   renderDashboardPanels();
 }
 
@@ -326,22 +339,30 @@ function getFilteredRows(){
 // ---------- DELETE (superadmin only — enforced by RLS too) ----------
 async function deleteVisitorIds(ids){
   if (ids.length === 0) return;
-  const photoPaths = allVisitors
-    .filter(v => ids.includes(v.id) && v.photo_url)
-    .map(v => v.photo_url);
-  if (photoPaths.length){
-    await supabaseClient.storage.from('visitor-photos').remove(photoPaths);
+  let failure = null;
+  let deletedTotal = 0;
+  for (let i = 0; i < ids.length; i += 50){
+    const chunk = ids.slice(i, i + 50);
+    const { data: deleted, error } = await supabaseClient
+      .from('visitors').delete().in('id', chunk).select('id, photo_url');
+    if (error){ failure = error.message; break; }
+    const gone = deleted || [];
+    const goneIds = gone.map(r => r.id);
+    const paths = gone.map(r => r.photo_url).filter(Boolean);
+    if (paths.length) await supabaseClient.storage.from('visitor-photos').remove(paths);
+    allVisitors = allVisitors.filter(v => !goneIds.includes(v.id));
+    goneIds.forEach(id => selectedIds.delete(id));
+    deletedTotal += goneIds.length;
+    if (goneIds.length < chunk.length){
+      failure = 'Sebagian data tidak terhapus (tidak ada izin atau sudah dihapus).';
+      break;
+    }
   }
-  const { error } = await supabaseClient.from('visitors').delete().in('id', ids);
-  if (error){
-    alert('Gagal menghapus data: ' + error.message);
-    return;
-  }
-  allVisitors = allVisitors.filter(v => !ids.includes(v.id));
-  ids.forEach(id => selectedIds.delete(id));
+  totalVisitors = Math.max(0, totalVisitors - deletedTotal);
   updateSelectedUI();
   renderStats();
   applyFilter();
+  if (failure) alert('Gagal menghapus data: ' + failure);
 }
 
 async function deleteVisitor(id){
@@ -528,7 +549,7 @@ async function downloadSelectedPhotos(){
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(link.href);
+    setTimeout(() => URL.revokeObjectURL(link.href), 4000);
   } catch (e){
     console.error(e);
     alert('Gagal menyimpan foto: ' + (e.message || 'kesalahan tidak diketahui'));
@@ -824,7 +845,10 @@ async function saveProfile(id){
     empId = empIdFromLabel(label);
     if (!empId){ alert('Role Employee perlu karyawan terkait. Pilih dari daftar saran.'); return; }
   }
-  const { error } = await supabaseClient.from('profiles').update({ roles, employee_id: empId }).eq('id', id);
+  const prof = mappingProfiles.find(x => x.id === id);
+  const { error } = await supabaseClient.rpc('admin_update_user', {
+    p_user_id: id, p_email: prof ? (prof.email || '') : '', p_roles: roles, p_employee_id: empId
+  });
   if (error){ alert('Gagal menyimpan: ' + error.message); return; }
   alert('Tersimpan.');
   if (id === currentProfile?.id) location.reload();
@@ -977,3 +1001,7 @@ async function deleteAkun(id){
   if (error){ alert('Gagal menghapus akun: ' + error.message); return; }
   await loadAkunData();
 }
+
+['login-email', 'login-pass'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+});

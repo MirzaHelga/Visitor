@@ -1,6 +1,6 @@
 // Service worker sederhana: app shell di-cache supaya bisa di-install & cepat dibuka.
 // Data (Supabase) TIDAK pernah di-cache — selalu langsung ke jaringan.
-const CACHE = 'visitor-app-v6';
+const CACHE = 'visitor-app-v7';
 const SHELL = [
   './', 'index.html', 'pages/admin.html',
   'assets/css/form.css', 'assets/css/admin.css',
